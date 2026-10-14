@@ -12,11 +12,15 @@ jobs:
       - name: Checkout Repository
         uses: actions/checkout@v4
 
-      - name: Build macOS App
+      - name: List Schemes and Build App
         run: |
           XCODEPROJ=$(ls -d *.xcodeproj | head -n 1)
+          echo "=== AVAILABLE SCHEMES ==="
+          xcodebuild -project "$XCODEPROJ" -list
+          
+          echo "=== BUILDING ALL TARGETS ==="
           xcodebuild -project "$XCODEPROJ" \
-            -scheme SimpleMTKClient \
+            -alltargets \
             -configuration Release \
             CODE_SIGN_IDENTITY="" \
             CODE_SIGNING_REQUIRED=NO \
@@ -24,10 +28,13 @@ jobs:
             CONFIGURATION_BUILD_DIR="$GITHUB_WORKSPACE/build_out" \
             build
 
-      - name: Zip App Bundle
+      - name: Locate and Zip App Bundle
         run: |
           cd "$GITHUB_WORKSPACE/build_out"
-          zip -r SimpleMTKClient-Compiled.zip SimpleMTKClient.app
+          # Find the compiled .app bundle dynamically no matter its name
+          APP_NAME=$(ls -d *.app | head -n 1)
+          echo "Found app: $APP_NAME"
+          zip -r SimpleMTKClient-Compiled.zip "$APP_NAME"
 
       - name: Upload Artifact
         uses: actions/upload-artifact@v4
