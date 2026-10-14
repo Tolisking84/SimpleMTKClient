@@ -14,14 +14,8 @@ jobs:
 
       - name: Build macOS App
         run: |
-          # Automatically finds the project file or workspace
-          if ls *.xcodeproj >/dev/null 2>&1; then
-            PROJ_ARG="-project $(ls *.xcodeproj | head -n 1)"
-          elif ls *.xcworkspace >/dev/null 2>&1; then
-            PROJ_ARG="-workspace $(ls *.xcworkspace | head -n 1)"
-          fi
-          
-          xcodebuild $PROJ_ARG \
+          XCODEPROJ=$(ls -d *.xcodeproj | head -n 1)
+          xcodebuild -project "$XCODEPROJ" \
             -scheme SimpleMTKClient \
             -configuration Release \
             CODE_SIGN_IDENTITY="" \
