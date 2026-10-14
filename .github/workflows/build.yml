@@ -1,43 +1,39 @@
 name: Build SimpleMTKClient
-
 on:
   workflow_dispatch:
   push:
     branches: [ main, master ]
-
 jobs:
   build:
     runs-on: macos-15
     steps:
-      - name: Checkout Repository
-        uses: actions/checkout@v4
-
-      - name: List Schemes and Build App
+      - uses: actions/checkout@v4
+      - name: Xcode and schemes
         run: |
-          XCODEPROJ=$(ls -d *.xcodeproj | head -n 1)
-          echo "=== AVAILABLE SCHEMES ==="
-          xcodebuild -project "$XCODEPROJ" -list
-          
-          echo "=== BUILDING ALL TARGETS ==="
-          xcodebuild -project "$XCODEPROJ" \
-            -alltargets \
-            -configuration Release \
-            CODE_SIGN_IDENTITY="" \
-            CODE_SIGNING_REQUIRED=NO \
-            CODE_SIGNING_ALLOWED=NO \
-            CONFIGURATION_BUILD_DIR="$GITHUB_WORKSPACE/build_out" \
-            build
-
-      - name: Locate and Zip App Bundle
+          xcodebuild -version
+          xcodebuild -project SimpleMTK.xcodeproj -list
+      - name: Build
         run: |
-          cd "$GITHUB_WORKSPACE/build_out"
-          # Find the compiled .app bundle dynamically no matter its name
-          APP_NAME=$(ls -d *.app | head -n 1)
-          echo "Found app: $APP_NAME"
-          zip -r SimpleMTKClient-Compiled.zip "$APP_NAME"
-
-      - name: Upload Artifact
+          set -o pipefail
+          xcodebuild -project SimpleMTK.xcodeproj -scheme SimpleMTK \
+            -configuration Release -destination 'generic/platform=macOS' \
+            -derivedDataPath build ARCHS=x86_64 ONLY_ACTIVE_ARCH=NO \
+            CODE_SIGN_IDENTITY="-" CODE_SIGNING_REQUIRED=NO CODE_SIGNING_ALLOWED=NO \
+            build 2>&1 | tee build.log
+      - name: Show errors
+        if: failure()
+        run: grep -E "error:|fatal" build.log | head -40 || true
+      - name: Upload log
+        if: always()
         uses: actions/upload-artifact@v4
         with:
-          name: SimpleMTKClient-App
-          path: build_out/SimpleMTKClient-Compiled.zip
+          name: build-log
+          path: build.log
+      - name: Zip app
+        run: |
+          APP=$(find build/Build/Products/Release -maxdepth 1 -name "SimpleMTK.app")
+          ditto -c -k --keepParent "$APP" SimpleMTK.zip
+      - uses: actions/upload-artifact@v4
+        with:
+          name: SimpleMTK-App
+          path: SimpleMTK.zip
