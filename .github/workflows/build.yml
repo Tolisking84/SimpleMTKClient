@@ -1,0 +1,42 @@
+name: Build SimpleMTKClient
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main, master ]
+
+jobs:
+  build:
+    runs-on: macos-15
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Build macOS App
+        run: |
+          # Automatically finds the project file or workspace
+          if ls *.xcodeproj >/dev/null 2>&1; then
+            PROJ_ARG="-project $(ls *.xcodeproj | head -n 1)"
+          elif ls *.xcworkspace >/dev/null 2>&1; then
+            PROJ_ARG="-workspace $(ls *.xcworkspace | head -n 1)"
+          fi
+          
+          xcodebuild $PROJ_ARG \
+            -scheme SimpleMTKClient \
+            -configuration Release \
+            CODE_SIGN_IDENTITY="" \
+            CODE_SIGNING_REQUIRED=NO \
+            CODE_SIGNING_ALLOWED=NO \
+            CONFIGURATION_BUILD_DIR="$GITHUB_WORKSPACE/build_out" \
+            build
+
+      - name: Zip App Bundle
+        run: |
+          cd "$GITHUB_WORKSPACE/build_out"
+          zip -r SimpleMTKClient-Compiled.zip SimpleMTKClient.app
+
+      - name: Upload Artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: SimpleMTKClient-App
+          path: build_out/SimpleMTKClient-Compiled.zip
